@@ -1,12 +1,16 @@
 // gcc ultime_pion.c -o ultime_pion && ./ultime_pion -Wall -std=c17
 // TODO: delete command
+#include <stdio.h>
 
 #define TAILLE 5
-#define VIDE "." 
-#define J1_PION "P"
-#define J1_CAVALIER "C"
-#define J2_PION "p"
-#define J2_CAVALIER "c"
+
+#define VIDE "·"
+#define PION          "♟"
+#define CAVALIER      "🩒"
+
+#define COLOR_RED     "\x1b[31m"
+#define COLOR_BLUE    "\x1b[34m"
+#define COLOR_RESET   "\x1b[0m"   // Réinitialise la styles
 
 typedef struct{
     char piece[TAILLE][TAILLE];
@@ -31,5 +35,8 @@ typedef struct{
 
 
 int main(void){
+    printf(VIDE "\n");
+    printf(COLOR_BLUE PION COLOR_RESET "\n");
+    printf(COLOR_RED CAVALIER COLOR_RESET "\n");
     return 0;
 }
