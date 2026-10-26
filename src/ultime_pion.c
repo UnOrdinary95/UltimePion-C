@@ -60,8 +60,9 @@ int determiner_sens(int joueur);
 int generer_deplacements_cavalier(Position depart, Deplacement d[], size_t capacite);
 int generer_deplacements_pion(Position depart, Deplacement d[], size_t capacite, int joueur);
 int aucun_coup_possible(Plateau *plateau);
+void jeu_afficher(Jeu *jeu);
+void jeu_initialiser(Jeu *jeu);
 int main(void);
-
 
 /**
  * @brief Vérifie si un déplacement est valide sur le plateau pour un joueur donné.
@@ -628,9 +629,96 @@ int aucun_coup_possible(Plateau *plateau){
     return 1;
 }
 
+/**
+ * @brief Affiche l'état actuel du jeu dans la console.
+ *
+ * Cette fonction affiche :
+ * - Le numéro du tour en cours
+ * - Les pénalités des deux joueurs
+ * - Le plateau de jeu avec les pièces positionnées
+ *
+ * Les pièces sont représentées avec les conventions suivantes :
+ * - '.' : Case vide (affichée avec le style VIDE)
+ * - 'C' : Cavalier du Joueur 1 (bleu)
+ * - 'P' : Pion du Joueur 1 (bleu)
+ * - 'c' : Cavalier du Joueur 2 (rouge)
+ * - 'p' : Pion du Joueur 2 (rouge)
+ *
+ * Le plateau est affiché avec :
+ * - Des coordonnées en lettres (A-E) pour les colonnes
+ * - Des coordonnées en chiffres (1-5) pour les lignes
+ * - Des couleurs pour distinguer les pièces des joueurs
+ *
+ * @param jeu Pointeur vers la structure Jeu contenant l'état actuel du jeu
+ */
+void jeu_afficher(Jeu *jeu)
+{
+    printf("Tour: %d\n", jeu->tour);
+    printf("[Pénalité Joueur 1] %d - %d [Pénalité Joueur 2]\n\n", jeu->penalite[0], jeu->penalite[1]);
+
+    printf("    A  B  C  D  E\n");
+    printf("  +---------------\n");
+
+    for (int i = 0; i < TAILLE; i++) {
+        printf("%d |", i + 1);
+
+        for (int j = 0; j < TAILLE; j++) {
+            switch (jeu->plateau.piece[i][j]) {
+                case '.':
+                    printf(" " VIDE " ");
+                    break;
+                case 'C':
+                    printf(" " COLOR_BLUE CAVALIER COLOR_RESET " ");
+                    break;
+                case 'P':
+                    printf(" " COLOR_BLUE PION COLOR_RESET " ");
+                    break;
+                case 'c':
+                    printf(" " COLOR_RED CAVALIER COLOR_RESET " ");
+                    break;
+                case 'p':
+                    printf(" " COLOR_RED PION COLOR_RESET " ");
+                    break;
+            }
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+/**
+ * @brief Initialise un état de jeu avec la configuration de départ standard.
+ *
+ * @param jeu Pointeur vers la structure Jeu à initialiser.
+ *
+ * Place les pièces sur le plateau selon la configuration initiale :
+ * - Joueur 1 (haut) : Cavaliers en A1/E1, pions en B1/C1/D1 et A2/E2.
+ * - Joueur 2 (bas) : Cavaliers en A5/E5, pions en B5/C5/D5 et A4/E4.
+ * Remet le numéro de tour à 1 et les pénalités des deux joueurs à 0.
+ */
+void jeu_initialiser(Jeu *jeu){
+    const char pieces_initiales[TAILLE][TAILLE] = {
+        {'C', 'P', 'P', 'P', 'C'},
+        {'P', '.', '.', '.', 'P'},
+        {'.', '.', '.', '.', '.'},
+        {'p', '.', '.', '.', 'p'},
+        {'c', 'p', 'p', 'p', 'c'}
+    };
+
+    for (int i = 0; i < TAILLE; i++) {
+        for (int j = 0; j < TAILLE; j++) {
+            jeu->plateau.piece[i][j] = pieces_initiales[i][j];
+        }
+    }
+
+    jeu->tour = 1;
+    jeu->penalite[0] = 0;
+    jeu->penalite[1] = 0;
+}
+
 int main(void){
-    printf(VIDE "\n");
-    printf(COLOR_BLUE PION COLOR_RESET "\n");
-    printf(COLOR_RED CAVALIER COLOR_RESET "\n");
+    Jeu jeu;
+    jeu_initialiser(&jeu);
+    jeu_afficher(&jeu);
     return 0;
 }
