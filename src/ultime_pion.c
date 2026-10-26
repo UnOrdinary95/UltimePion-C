@@ -62,6 +62,7 @@ int generer_deplacements_pion(Position depart, Deplacement d[], size_t capacite,
 int aucun_coup_possible(Plateau *plateau);
 void jeu_afficher(Jeu *jeu);
 void jeu_initialiser(Jeu *jeu);
+int plateau_promouvoir(Plateau *plateau, Position pos);
 int main(void);
 
 /**
@@ -714,6 +715,68 @@ void jeu_initialiser(Jeu *jeu){
     jeu->tour = 1;
     jeu->penalite[0] = 0;
     jeu->penalite[1] = 0;
+}
+
+/**
+ * @brief Promouvoit un pion en cavalier s'il atteint le bord opposé du plateau.
+ *
+ * Cette fonction vérifie si un pion peut être promu en cavalier selon les règles suivantes :
+ * - Le pion doit appartenir au joueur actuel
+ * - Le pion doit avoir atteint la ligne opposée à sa ligne de départ (BORNE_MAX pour le Joueur 1, BORNE_MIN pour le Joueur 2)
+ * - Le joueur ne doit pas déjà avoir 2 cavaliers sur le plateau
+ *
+ * @param plateau Pointeur vers la structure Plateau représentant l'état actuel du jeu
+ * @param pos Position de la pièce à potentiellement promouvoir
+ *
+ * @return int
+ * - 1 si la promotion a été effectuée avec succès
+ * - 0 si la promotion n'est pas possible (position invalide, pièce non promouvable, limite de cavaliers atteinte, etc.)
+ *
+ */
+int plateau_promouvoir(Plateau *plateau, Position pos){
+    if (deplacement_hors_plateau((Deplacement){pos, pos, {-1, -1}})){
+        return 0;
+    }
+
+    int code_piece = identifier_piece(plateau, (Deplacement){pos, {0, 0}, {-1, -1}}, 1);
+    if (code_piece == 0 || code_piece == -1 || code_piece == 1){
+        return 0;
+    }
+
+    int joueur;
+    char cavalier;
+    if (code_piece == -2){
+        if (pos.ligne != BORNE_MAX){
+            return 0;
+        }
+        joueur = 1;
+        cavalier = 'C';
+    } else {
+        if (pos.ligne != BORNE_MIN){
+            return 0;
+        }
+        joueur = 2;
+        cavalier = 'c';
+    }
+
+    if (!est_piece_joueur(joueur, code_piece)){
+        return 0;
+    }
+
+    int nb_cavalier = 0;
+    for (int i = 0; i < TAILLE; i++){
+        for (int j = 0; j < TAILLE; j++){
+            if (plateau->piece[i][j] == cavalier){
+                nb_cavalier++;
+            }
+
+            if (nb_cavalier >= 2){
+                return 0;
+            }
+        }
+    }
+    plateau->piece[pos.ligne][pos.colonne] = cavalier;
+    return 1;
 }
 
 int main(void){
