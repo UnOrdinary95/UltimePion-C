@@ -42,6 +42,27 @@ typedef struct{
 } Deplacement;
 
 
+int plateau_deplacement_valide(Plateau *plateau, Deplacement depl, int joueur);
+int jeu_est_termine(Jeu *jeu);
+int jeu_vainqueur(Jeu *jeu);
+void jeu_charger(Jeu *jeu);
+void jeu_ecrire(Jeu *jeu);
+int verifier_defaite_penalites(int penalite[]);
+int aucun_pions_restant(char piece[][TAILLE]);
+int deplacement_hors_plateau(Deplacement d);
+int deplacement_cavalier_valide(Deplacement d);
+int deplacement_pion_valide(Deplacement d, int joueur);
+int est_joueur(int joueur);
+int identifier_piece(Plateau *plateau, Deplacement d, int est_depart);
+int est_piece_joueur(int joueur, int code_piece);
+int pion_bloque(int code_piece_depart, int code_piece_arrivee, Deplacement d, int joueur);
+int determiner_sens(int joueur);
+int generer_deplacements_cavalier(Position depart, Deplacement d[], size_t capacite);
+int generer_deplacements_pion(Position depart, Deplacement d[], size_t capacite, int joueur);
+int aucun_coup_possible(Plateau *plateau);
+int main(void);
+
+
 /**
  * @brief Vérifie si un déplacement est valide sur le plateau pour un joueur donné.
  *
