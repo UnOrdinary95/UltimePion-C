@@ -1,6 +1,8 @@
 // gcc ultime_pion.c -o ultime_pion && ./ultime_pion -Wall -std=c17
 // TODO: delete command
 #include <stdio.h>
+#include <string.h> // Pour memcpy()
+#include <stddef.h> // Pour size_t
 
 #define TAILLE        5
 #define BORNE_MIN     0
@@ -9,6 +11,9 @@
 #define VIDE          "·"
 #define PION          "♟"
 #define CAVALIER      "🩒"
+
+#define NB_DESTINATIONS_PION_MAX 3
+#define NB_DESTINATIONS_CAVALIER_MAX 8 
 
 #define COLOR_BLUE    "\x1b[34m"    // Joueur 1
 #define COLOR_RED     "\x1b[31m"    // Joueur 2
@@ -393,7 +398,7 @@ int pion_bloque(int code_piece_depart, int code_piece_arrivee, Deplacement d, in
 
     // Cas 1 : pion_depart ne peut pas manger une case vide (avancer en diagonale)
     if (code_piece_arrivee == 0){
-        if (d.arrivee.ligne ==  d.depart.ligne - 1 * sens){
+        if (d.arrivee.ligne ==  d.depart.ligne - sens){
             if (d.arrivee.colonne == d.depart.colonne - 1 || d.arrivee.colonne == d.depart.colonne + 1){
                 return 1;
             }
@@ -402,7 +407,7 @@ int pion_bloque(int code_piece_depart, int code_piece_arrivee, Deplacement d, in
     }
 
     // Cas 2 : une piece est devant le pion_depart
-    if (d.arrivee.ligne == d.depart.ligne - 1 * sens && d.arrivee.colonne == d.depart.colonne){
+    if (d.arrivee.ligne == d.depart.ligne - sens && d.arrivee.colonne == d.depart.colonne){
         return 1;
     }
 
@@ -422,8 +427,75 @@ int determiner_sens(int joueur){
     return (joueur == 1) ? -1 : 1;
 }
 
-int simuler_deplacement_cavalier(Position depart){
+/**
+ * @brief Génère les déplacements candidats d'un cavalier à partir d'une position.
+ *
+ * @param depart Position de départ du cavalier.
+ * @param d Tableau de structures Deplacement où stocker les déplacements candidats.
+ * @param capacite Nombre d'éléments que peut contenir le tableau `d`.
+ * @return 1 si les déplacements ont été générés avec succès (capacité suffisante),
+ *         0 si la capacité du tableau `d` est insuffisante.
+ *
+ * @note Le tableau `d` doit pouvoir contenir au moins `NB_DESTINATIONS_CAVALIER_MAX` éléments.
+ *       Les déplacements générés incluent toutes les cases accessibles par un cavalier,
+ *       indépendamment de leur validité sur le plateau (vérification à faire séparément).
+ */
+int generer_deplacements_cavalier(Position depart, Deplacement d[], size_t capacite){
+    Deplacement deplacements_candidats[NB_DESTINATIONS_CAVALIER_MAX] = {
+        {depart, {depart.ligne + 2, depart.colonne - 1}, {-1, -1}}, // l+2 c-1
+        {depart, {depart.ligne + 2, depart.colonne + 1}, {-1, -1}}, // l+2 c+1
+        {depart, {depart.ligne - 2, depart.colonne - 1}, {-1, -1}}, // l-2 c-1
+        {depart, {depart.ligne - 2, depart.colonne + 1}, {-1, -1}}, // l-2 c+1
+        {depart, {depart.ligne + 1, depart.colonne - 2}, {-1, -1}}, // l+1 c-2
+        {depart, {depart.ligne + 1, depart.colonne + 2}, {-1, -1}}, // l+1 c+2
+        {depart, {depart.ligne - 1, depart.colonne - 2}, {-1, -1}}, // l-1 c-2
+        {depart, {depart.ligne - 1, depart.colonne + 2}, {-1, -1}}, // l-1 c+2
+    };
 
+    if (capacite < NB_DESTINATIONS_CAVALIER_MAX){
+        return 0;
+    }
+
+    memcpy(d, deplacements_candidats, sizeof deplacements_candidats);
+
+    return 1;
+}
+
+/**
+ * @brief Génère les déplacements candidats d'un pion à partir d'une position.
+ *
+ * @param depart Position de départ du pion.
+ * @param d Tableau de structures Deplacement où stocker les déplacements candidats.
+ * @param capacite Nombre d'éléments que peut contenir le tableau `d`.
+ * @param joueur Numéro du joueur (1 ou 2) dont le pion se déplace.
+ * @return 1 si les déplacements ont été générés avec succès (joueur valide et capacité suffisante),
+ *         0 si le joueur est invalide ou si la capacité du tableau `d` est insuffisante.
+ *
+ * @note Le tableau `d` doit pouvoir contenir au moins `NB_DESTINATIONS_PION_MAX` éléments.
+ *       Les déplacements générés incluent :
+ *       - Une case en avant (ligne ±1 selon le joueur),
+ *       - Deux cases en diagonale avant (ligne ±1, colonne ±1 selon le joueur).
+ *       La validité de ces déplacements sur le plateau doit être vérifiée séparément.
+ */
+int generer_deplacements_pion(Position depart, Deplacement d[], size_t capacite, int joueur){
+    if (!est_joueur(joueur)){
+        return 0;
+    }
+
+    int sens = determiner_sens(joueur);
+    Deplacement deplacements_candidats[NB_DESTINATIONS_PION_MAX] = {
+        {depart, {depart.ligne - sens, depart.colonne}, {-1, -1}}, // l+-1
+        {depart, {depart.ligne - sens, depart.colonne - 1}, {-1, -1}}, // l+-1 c-1
+        {depart, {depart.ligne - sens, depart.colonne + 1}, {-1, -1}}, // l+-1 c+1
+    };
+
+    if (capacite < NB_DESTINATIONS_PION_MAX){
+        return 0;
+    }
+
+    memcpy(d, deplacements_candidats, sizeof deplacements_candidats);
+
+    return 1;
 }
 
 // 8 cases possibles
@@ -434,7 +506,11 @@ int simuler_deplacement_cavalier(Position depart){
 // et est-ce que je peux faire col - 2 ? JE peux aller à gauche (3)
 // et est-ce que je peux faire col + 2 ? JE peux aller à droite (4)
 
-int aucun_coup_possible(){} 
+
+// j'itère sur piece, je determine c'est le piece de qui ensuite je simule chaque mouvement possible
+int aucun_coup_possible(){
+
+}
 
 
 // TODO: Déterminer les coups possible d'un joueurs pour ensuite finir jeu_est_termine.
