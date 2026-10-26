@@ -44,9 +44,10 @@ typedef struct{
  * @param depl Structure Deplacement contenant les positions de départ et d'arrivée.
  * @param joueur Numéro du joueur (1 ou 2) effectuant le déplacement.
  * @return 1 si le déplacement est valide (pièce du joueur à la position de départ,
- *         déplacement géométriquement correct, et case d'arrivée non occupée par une pièce alliée),
+ *         déplacement géométriquement correct, case d'arrivée non occupée par une pièce alliée,
+ *         et règles spécifiques du pion respectées),
  *         0 sinon (joueur invalide, déplacement hors plateau, pièce inexistante ou alliée à l'arrivée,
- *         ou déplacement géométriquement invalide).
+ *         déplacement géométriquement invalide, ou pion bloqué).
  *
  * @note Ne gère pas les règles de redéploiement.
  */
@@ -59,24 +60,32 @@ int plateau_deplacement_valide(Plateau *plateau, Deplacement depl, int joueur){
         return 0;
     }
 
-    int piece_depart = identifier_piece(plateau, depl, joueur, 1);
+    int piece_depart = identifier_piece(plateau, depl, 1);
 
-    if (piece_depart == 0){
+    if (!est_piece_joueur(joueur, piece_depart)){
         return 0;
-    } else if (piece_depart == 1){
+    }
+
+    if (piece_depart == -1 || piece_depart == 1){
         if (!deplacement_cavalier_valide(depl)){
             return 0;
         }
-    } else{
-        // Si c'est pas un cavalier alors c'est un pion
+    } else if (piece_depart == -2 || piece_depart == 2){
         if (!deplacement_pion_valide(depl, joueur)){
             return 0;
         }
     }
 
-    int piece_arrivee = identifier_piece(plateau, depl, joueur, 0);
+    int piece_arrivee = identifier_piece(plateau, depl, 0);
 
-    if (piece_arrivee == 1 || piece_arrivee == 2){
+    if (pion_bloque(piece_depart, piece_arrivee, depl, joueur)){
+        return 0;
+    }
+
+    int sens = determiner_sens(joueur);
+    // Cas ou la piece c'est une piece du joueur
+    if (piece_arrivee == 1 * sens || piece_arrivee == 2 * sens) // piece negative si c'est joueur 1, piece positive si c'est joueur 2
+    {
         return 0;
     }
 
@@ -308,18 +317,19 @@ int est_joueur(int joueur){
 }
 
 /**
- * @brief Identifie le type de pièce à une position donnée pour un joueur valide.
+ * @brief Identifie le contenu d'une case du plateau (départ ou arrivée).
  *
  * @param plateau Pointeur vers le plateau de jeu.
  * @param d Structure Deplacement contenant les positions de départ et d'arrivée.
- * @param joueur Numéro du joueur (doit être 1 ou 2, déjà validé par l'appelant).
  * @param est_depart 1 pour vérifier la position de départ, 0 pour l'arrivée.
- * @return 1 si la pièce est un cavalier,
- *         2 si la pièce est un pion,
- *         0 si la pièce n'appartient pas au joueur, si la case est vide,
- *         ou si est_depart n'est pas 0 ou 1.
+ * @return -2 si la case contient un pion du joueur 1 ('P'),
+ *         -1 si la case contient un cavalier du joueur 1 ('C'),
+ *          0 si la case est vide ('.'),
+ *          1 si la case contient un cavalier du joueur 2 ('c'),
+ *          2 si la case contient un pion du joueur 2 ('p'),
+ *         et 0 si est_depart n'est pas 0 ou 1.
  */
-int identifier_piece(Plateau *plateau, Deplacement d, int joueur, int est_depart){
+int identifier_piece(Plateau *plateau, Deplacement d, int est_depart){
     char piece;
     if (est_depart == 1){
         piece = plateau->piece[d.depart.ligne][d.depart.colonne];
@@ -329,14 +339,87 @@ int identifier_piece(Plateau *plateau, Deplacement d, int joueur, int est_depart
         return 0;
     }
 
-    if (joueur == 1) {
-        if (piece == 'C') return 1;
-        if (piece == 'P') return 2;
-    } else if (joueur == 2) {
-        if (piece == 'c') return 1;
-        if (piece == 'p') return 2;
-    }
+    if (piece == 'C') return -1;
+    if (piece == 'P') return -2;
+    if (piece == 'c') return 1;
+    if (piece == 'p') return 2;
+
+    // Case vide
     return 0;
+}
+
+/**
+ * @brief Vérifie si un code de pièce appartient au joueur donné.
+ *
+ * @param joueur Numéro du joueur (1 ou 2).
+ * @param code_piece Code de la pièce retourné par identifier_piece().
+ * @return 1 si la pièce appartient au joueur,
+ *         0 si la pièce appartient à l'adversaire, si la case est vide (code_piece = 0),
+ *         ou si le joueur n'est pas 1 ou 2.
+ */
+int est_piece_joueur(int joueur, int code_piece){
+    if (joueur == 1){
+        if (code_piece == -1 || code_piece == -2){
+            return 1;
+        }
+    }
+
+    if (joueur == 2){
+        if (code_piece == 1 || code_piece == 2){
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Vérifie si un pion est bloqué dans son déplacement.
+ *
+ * @param code_piece_depart Code de la pièce de départ (doit être -2 ou 2 pour un pion).
+ * @param code_piece_arrivee Code de la pièce à l'arrivée (retourné par identifier_piece()).
+ * @param d Structure Deplacement contenant les positions de départ et d'arrivée.
+ * @param joueur Numéro du joueur (1 ou 2) dont le pion se déplace.
+ * @return 1 si le pion est bloqué (tentative de déplacement diagonal vers une case vide,
+ *         ou présence d'une pièce devant lui en ligne droite),
+ *         0 sinon (déplacement valide ou pièce non bloquée).
+ */
+int pion_bloque(int code_piece_depart, int code_piece_arrivee, Deplacement d, int joueur){
+    if (code_piece_depart != -2 && code_piece_depart != 2){
+        return 0; // Pas un pion
+    }
+
+    int sens = determiner_sens(joueur);
+
+    // Cas 1 : pion_depart ne peut pas manger une case vide (avancer en diagonale)
+    if (code_piece_arrivee == 0){
+        if (d.arrivee.ligne ==  d.depart.ligne - 1 * sens){
+            if (d.arrivee.colonne == d.depart.colonne - 1 || d.arrivee.colonne == d.depart.colonne + 1){
+                return 1;
+            }
+        }
+        return 0; // le pion avance tt droit vers une case vide == pas bloque
+    }
+
+    // Cas 2 : une piece est devant le pion_depart
+    if (d.arrivee.ligne == d.depart.ligne - 1 * sens && d.arrivee.colonne == d.depart.colonne){
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Détermine le sens de déplacement d'un joueur.
+ *
+ * @param joueur Numéro du joueur (1 ou 2).
+ * @return -1 si le joueur est 1 (déplacement vers les lignes décroissantes),
+ *          1 si le joueur est 2 (déplacement vers les lignes croissantes),
+ *          0 si le joueur n'est pas valide (ni 1 ni 2).
+ */
+int determiner_sens(int joueur){
+    if (joueur != 1 && joueur != 2) return 0;
+    return (joueur == 1) ? -1 : 1;
 }
 
 int simuler_deplacement_cavalier(Position depart){
@@ -355,6 +438,12 @@ int aucun_coup_possible(){}
 
 
 // TODO: Déterminer les coups possible d'un joueurs pour ensuite finir jeu_est_termine.
+// La partie est également nulle lorsque les deux joueurs possèdent encore des pions mais qu’au moins
+// l’un des deux ne dispose d’aucun déplacement valide possible.
+
+// peu importe le joueur, si il ne peut pas jouer alors c'est nulle. donc ça revient à itérer sur tt les cases et check si c'est jouable
+// si c'est jouable des deux cotés, return 0
+// injouable = return 1
 
 int main(void){
     printf(VIDE "\n");
@@ -362,4 +451,3 @@ int main(void){
     printf(COLOR_RED CAVALIER COLOR_RESET "\n");
     return 0;
 }
-
