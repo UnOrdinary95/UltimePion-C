@@ -63,6 +63,7 @@ int aucun_coup_possible(Plateau *plateau);
 void jeu_afficher(Jeu *jeu);
 void jeu_initialiser(Jeu *jeu);
 int plateau_promouvoir(Plateau *plateau, Position pos);
+int position_lire(Position *pos);
 int main(void);
 
 /**
@@ -778,6 +779,45 @@ int plateau_promouvoir(Plateau *plateau, Position pos){
     plateau->piece[pos.ligne][pos.colonne] = cavalier;
     return 1;
 }
+
+/**
+ * @brief Lit une position au format "ligne colonne" depuis l'entrée standard.
+ *
+ * Cette fonction lit deux caractères depuis l'entrée standard (stdin) :
+ * - Le premier caractère représente la ligne (chiffre de '1' à '9').
+ * - Le second caractère représente la colonne (lettre majuscule de 'A' à 'Z').
+ *
+ * La position lue est convertie en indices de tableau (0-based) :
+ * - La ligne est décrémentée de 1 (ex: '1' devient 0).
+ * - La colonne est convertie en indice numérique (ex: 'A' devient 0).
+ *
+ * @param[out] pos Pointeur vers la structure Position à remplir avec les valeurs lues.
+ * @return int 0 si la lecture a réussi, 1 en cas d'erreur (format invalide ou EOF).
+ */
+int position_lire(Position *pos){
+    char c1, c2;
+
+    if (scanf(" %c %c", &c1, &c2) != 2) {
+        return 1;
+    }
+
+    pos->ligne = c1 - '0' - 1; // Conversion d'un entier char en entier int - 1 (indice tableau)
+    pos->colonne = c2 - 'A';
+
+    return 0;
+}
+
+/*
+TODO: La suite
+Après la saisie de depart et arrivee faut check si c'est un pion et si il traverse la derniere ligne,
+si c'est le cas alors check si il faut promouvoir ou redeployer (refactor plateau_promouvoir si besoin pour eviter la redondance)
+
+tout ça sera encapsulé dans une fonction qui sera appelé dans lire deplacement
+
+---
+Relire le sujet pour voir ce qu'il reste à faire.
+
+*/
 
 int main(void){
     Jeu jeu;
