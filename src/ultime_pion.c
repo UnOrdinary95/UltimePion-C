@@ -97,11 +97,63 @@ int plateau_deplacement_valide(Plateau *plateau, Deplacement depl, int joueur){
     return 1;
 }
 
+/**
+ * @brief Vérifie si la partie est terminée.
+ *
+ * @param jeu Pointeur vers l'état actuel du jeu.
+ * @return 1 si la partie est terminée (aucun pion restant pour l'un des joueurs,
+ *         aucun coup valide possible pour l'un des joueurs, ou un joueur a atteint 2 points de pénalité),
+ *         0 sinon.
+ */
 int jeu_est_termine(Jeu *jeu){
+    if (aucun_pions_restant(jeu->plateau.piece)){
+        return 1;
+    }
+
+    if (aucun_coup_possible(&jeu->plateau)){
+        return 1;
+    }
+
+    if (verifier_defaite_penalites(jeu->penalite)){
+        return 1;
+    }
+    return 0;
 }
 
-int jeu_vainqueur(Jeu *jeu){
 
+/**
+ * @brief Détermine le vainqueur d'une partie terminée.
+ *
+ * @param jeu Pointeur vers l'état actuel du jeu (supposé terminé).
+ * @return Numéro du joueur vainqueur (1 ou 2),
+ *         ou 0 en cas de match nul.
+ *
+ * @note Cette fonction suppose que la partie est terminée (appel préalable à jeu_est_termine()).
+ *       Les règles de fin de partie sont vérifiées dans l'ordre suivant :
+ *       1. Pénalités (un joueur atteint 2 points de pénalité),
+ *       2. Pions restants (un joueur n'a plus de pions),
+ *       3. Aucun coup valide possible (match nul).
+ */
+int jeu_vainqueur(Jeu *jeu){
+    int cas3 = verifier_defaite_penalites(jeu->penalite);
+    if (cas3 == -1){
+        return 0;
+    } else if (cas3 == 1 || cas3 == 2){
+        return cas3;
+    }
+
+    int cas1 = aucun_pions_restant(jeu->plateau.piece);
+    if (cas1 == -1){
+        return 0;
+    } else if (cas1 == 1 || cas1 == 2){
+        return cas1; // joueur 1 ou joueur 2
+    } 
+
+    if (aucun_coup_possible(&jeu->plateau)){
+        return 0;
+    }
+
+    return 0;
 }
 
 /**
@@ -188,9 +240,9 @@ int aucun_pions_restant(char piece[][TAILLE]){
     for (int i = 0; i < TAILLE; i++)
     {
         for (int j = 0; j < TAILLE; j++){
-            if ((piece[i][j] == 'P' || piece[i][j] == 'C') && aucun_pion_j1){
+            if (piece[i][j] == 'P' && aucun_pion_j1){
                 aucun_pion_j1 = 0;
-            } else if ((piece[i][j] == 'p' || piece[i][j] == 'c') && aucun_pion_j2) {
+            } else if (piece[i][j] == 'p' && aucun_pion_j2) {
                 aucun_pion_j2 = 0;
             }
 
@@ -371,7 +423,7 @@ int est_piece_joueur(int joueur, int code_piece){
 
     if (joueur == 2){
         if (code_piece == 1 || code_piece == 2){
-            return 1;
+            return 2;
         }
     }
 
@@ -498,28 +550,62 @@ int generer_deplacements_pion(Position depart, Deplacement d[], size_t capacite,
     return 1;
 }
 
-// 8 cases possibles
-// est-ce que je peux faire ligne - 2 ?
-// et est-ce que je peux faire col - 1 ? JE peux aller à gauche (1)
-// et est-ce que je peux faire col + 1 ? JE peux aller à droite (2)
-// est-ce que je peux faire ligne - 1 ?
-// et est-ce que je peux faire col - 2 ? JE peux aller à gauche (3)
-// et est-ce que je peux faire col + 2 ? JE peux aller à droite (4)
+/**
+ * @brief Vérifie si l'un des joueurs n'a aucun coup valide possible.
+ *
+ * @param plateau Pointeur vers le plateau de jeu.
+ * @return 1 si au moins un joueur n'a aucun coup valide possible,
+ *         0 si les deux joueurs ont au moins un coup valide.
+ */
+int aucun_coup_possible(Plateau *plateau){
+    int aucun_coup[2] = {1, 1}; // Joueur1, Joueur2
 
+    for (int i = 0; i < TAILLE; i++){
+        for (int j = 0; j < TAILLE; j++){
+            Position pos_depart = {i, j};
+            int code_piece_depart = identifier_piece(plateau, (Deplacement){pos_depart, {0, 0}, {-1, -1}}, 1); // position arrivee et redeploiement ne servent à rien ici
+            int joueur;
 
-// j'itère sur piece, je determine c'est le piece de qui ensuite je simule chaque mouvement possible
-int aucun_coup_possible(){
+            if (code_piece_depart == -1 || code_piece_depart == -2){
+                joueur = 1;
+            } else if (code_piece_depart == 1 || code_piece_depart == 2) {
+                joueur = 2;
+            } else{
+                continue;
+            }
 
+            // Le joueur a un coup possible, on skip
+            if (!aucun_coup[joueur - 1]){
+                continue;
+            }
+
+            Deplacement deplacements_candidats[NB_DESTINATIONS_CAVALIER_MAX]; // Taille suffisante pour pion et cavalier
+            int nb_destinations_max;
+            if (code_piece_depart == -1 || code_piece_depart == 1){
+                nb_destinations_max = NB_DESTINATIONS_CAVALIER_MAX;
+                generer_deplacements_cavalier(pos_depart, deplacements_candidats, NB_DESTINATIONS_CAVALIER_MAX);
+            } else if (code_piece_depart == -2 || code_piece_depart == 2){
+                nb_destinations_max = NB_DESTINATIONS_PION_MAX;
+                generer_deplacements_pion(pos_depart, deplacements_candidats, NB_DESTINATIONS_PION_MAX, joueur);
+            } else{
+                continue;
+            }
+
+            for (int i = 0; i < nb_destinations_max; i++){
+                int coup_valide = plateau_deplacement_valide(plateau, deplacements_candidats[i], joueur);
+                if (coup_valide){
+                    aucun_coup[joueur - 1] = 0;
+                    break;
+                }
+            }
+
+            if (!aucun_coup[0] && !aucun_coup[1]){
+                return 0; // Partie toujours jouable
+            }
+        }
+    }
+    return 1;
 }
-
-
-// TODO: Déterminer les coups possible d'un joueurs pour ensuite finir jeu_est_termine.
-// La partie est également nulle lorsque les deux joueurs possèdent encore des pions mais qu’au moins
-// l’un des deux ne dispose d’aucun déplacement valide possible.
-
-// peu importe le joueur, si il ne peut pas jouer alors c'est nulle. donc ça revient à itérer sur tt les cases et check si c'est jouable
-// si c'est jouable des deux cotés, return 0
-// injouable = return 1
 
 int main(void){
     printf(VIDE "\n");
