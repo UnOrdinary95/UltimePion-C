@@ -69,10 +69,11 @@ int generer_deplacements_pion(Position depart, Deplacement d[], size_t capacite,
 int aucun_coup_possible(Plateau *plateau);
 void jeu_afficher(Jeu *jeu);
 void jeu_initialiser(Jeu *jeu);
-int plateau_promouvoir(Plateau *plateau, Position pos);
+void plateau_promouvoir(Plateau *plateau, Position pos, int joueur);
 int position_lire(Position *pos);
 int derniere_ligne(Plateau *plateau, Deplacement d);
 void deplacement_lire(Deplacement *d);
+int peut_redeployer(Plateau *plateau, int joueur);
 int main(void);
 
 /**
@@ -728,65 +729,16 @@ void jeu_initialiser(Jeu *jeu){
 }
 
 /**
- * @brief Promouvoit un pion en cavalier s'il atteint le bord opposé du plateau.
+ * @brief Promouvoit un pion en cavalier à la position donnée.
  *
- * Cette fonction vérifie si un pion peut être promu en cavalier selon les règles suivantes :
- * - Le pion doit appartenir au joueur actuel
- * - Le pion doit avoir atteint la ligne opposée à sa ligne de départ (BORNE_MAX pour le Joueur 1, BORNE_MIN pour le Joueur 2)
- * - Le joueur ne doit pas déjà avoir 2 cavaliers sur le plateau
+ * Remplace directement la pièce à la position `pos` par un cavalier du joueur spécifié.
  *
- * @param plateau Pointeur vers la structure Plateau représentant l'état actuel du jeu
- * @param pos Position de la pièce à potentiellement promouvoir
- *
- * @return int
- * - 1 si la promotion a été effectuée avec succès
- * - 0 si la promotion n'est pas possible (position invalide, pièce non promouvable, limite de cavaliers atteinte, etc.)
- *
+ * @param plateau Pointeur vers le plateau de jeu
+ * @param pos Position de la pièce à promouvoir
+ * @param joueur Numéro du joueur (1 ou 2)
  */
-int plateau_promouvoir(Plateau *plateau, Position pos){
-    if (deplacement_hors_plateau((Deplacement){pos, pos, {-1, -1}})){
-        return 0;
-    }
-
-    int code_piece = identifier_piece(plateau, (Deplacement){pos, {0, 0}, {-1, -1}}, 1);
-    if (code_piece == 0 || code_piece == -1 || code_piece == 1){
-        return 0;
-    }
-
-    int joueur;
-    char cavalier;
-    if (code_piece == -2){
-        if (pos.ligne != BORNE_MAX){
-            return 0;
-        }
-        joueur = 1;
-        cavalier = CA_1;
-    } else {
-        if (pos.ligne != BORNE_MIN){
-            return 0;
-        }
-        joueur = 2;
-        cavalier = CA_2;
-    }
-
-    if (!est_piece_joueur(joueur, code_piece)){
-        return 0;
-    }
-
-    int nb_cavalier = 0;
-    for (int i = 0; i < TAILLE; i++){
-        for (int j = 0; j < TAILLE; j++){
-            if (plateau->piece[i][j] == cavalier){
-                nb_cavalier++;
-            }
-
-            if (nb_cavalier >= 2){
-                return 0;
-            }
-        }
-    }
-    plateau->piece[pos.ligne][pos.colonne] = cavalier;
-    return 1;
+void plateau_promouvoir(Plateau *plateau, Position pos, int joueur){
+    plateau->piece[pos.ligne][pos.colonne] = (joueur == 1) ? CA_1 : CA_2;
 }
 
 /**
@@ -883,16 +835,39 @@ void deplacement_lire(Deplacement *d){
     d->redeploiement = (Position){-1, -1}; // Par défaut on va le laisser invalides
 }
 
+int peut_redeployer(Plateau *plateau, int joueur){
+    if (!est_joueur(joueur)){
+        return 0;
+    }
+
+    char cavalier = (joueur == 1) ? CA_1 : CA_2;
+    int nb_cavalier = 0;
+
+    for (int i = 0; i < TAILLE; i++){
+        for (int j = 0; j < TAILLE; j++){
+            if (plateau->piece[i][j] == cavalier){
+                nb_cavalier++;
+            }
+
+            if (nb_cavalier >= 2){
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /*
 TODO: La suite
 Après la saisie de depart et arrivee faut check si c'est un pion et si il traverse la derniere ligne,
-si c'est le cas alors check si il faut promouvoir ou redeployer (refactor plateau_promouvoir si besoin pour eviter la redondance)
+si c'est le cas alors check si il faut promouvoir ou redeployer
 
 tout ça sera encapsulé dans une fonction qui sera appelé dans lire deplacement
 
 ---
 Relire le sujet pour voir ce qu'il reste à faire.
-refactor derniere ligne car le test est déjà faites avant ?
+refactor derniere ligne car le test est déjà faites avant ? (On verra plus tard)
 
 */
 
