@@ -65,6 +65,7 @@ void jeu_initialiser(Jeu *jeu);
 int plateau_promouvoir(Plateau *plateau, Position pos);
 int position_lire(Position *pos);
 int derniere_ligne(Plateau *plateau, Deplacement d);
+void deplacement_lire(Deplacement *d);
 int main(void);
 
 /**
@@ -792,7 +793,7 @@ int plateau_promouvoir(Plateau *plateau, Position pos){
  * - La ligne est décrémentée de 1 (ex: '1' devient 0).
  * - La colonne est convertie en indice numérique (ex: 'A' devient 0).
  *
- * @param[out] pos Pointeur vers la structure Position à remplir avec les valeurs lues.
+ * @param pos Pointeur vers la structure Position à remplir avec les valeurs lues.
  * @return int 0 si la lecture a réussi, 1 en cas d'erreur (format invalide ou EOF).
  */
 int position_lire(Position *pos){
@@ -819,8 +820,8 @@ int position_lire(Position *pos){
  * - Si c'est un pion bleu (-2), il doit atteindre la ligne maximale (BORNE_MAX).
  * - Si c'est un pion rouge (2), il doit atteindre la ligne minimale (BORNE_MIN).
  *
- * @param[in] plateau Pointeur vers la structure Plateau représentant l'état actuel du jeu.
- * @param[in] d Structure Déplacement contenant les positions de départ et d'arrivée.
+ * @param plateau Pointeur vers la structure Plateau représentant l'état actuel du jeu.
+ * @param d Structure Déplacement contenant les positions de départ et d'arrivée.
  * @return int 1 si le déplacement atteint la dernière ligne pour la pièce concernée, 0 sinon.
  */
 int derniere_ligne(Plateau *plateau, Deplacement d){
@@ -828,13 +829,50 @@ int derniere_ligne(Plateau *plateau, Deplacement d){
 
     if (code_piece_depart != -2 && code_piece_depart != 2){
         return 0;
-    } else if (code_piece_depart == -2 && d.arrivee.ligne != BORNE_MAX){
+    } else if (code_piece_depart == -2 && (d.depart.ligne != BORNE_MAX - 1 || d.arrivee.ligne != BORNE_MAX)){
         return 0;
-    } else if (d.arrivee.ligne != BORNE_MIN){
+    } else if (d.depart.ligne != BORNE_MIN + 1 || d.arrivee.ligne != BORNE_MIN){
         return 0;
     }
 
     return 1;
+}
+
+/**
+ * @brief Lit un déplacement depuis l'entrée standard (stdin) au format "ligne colonne".
+ *
+ * Cette fonction demande à l'utilisateur de saisir deux positions :
+ * - Une position de départ.
+ * - Une position d'arrivée.
+ * 
+ * En cas d'erreur de saisie, l'utilisateur est invité à recommencer.
+ *
+ * @param d Pointeur vers une structure Deplacement qui sera remplie avec les positions
+ * de départ et d'arrivée saisies par l'utilisateur.
+ */
+void deplacement_lire(Deplacement *d){
+    Position depart, arrivee;
+    int pos;
+    do{
+        printf("Saisir position départ : ");
+        pos = position_lire(&depart);
+
+        if (pos == 1){
+            printf("\nUne erreur a survenue.\n");
+            continue;
+        }
+        
+        printf("Saisir position arrivée : ");
+        pos = position_lire(&arrivee);
+
+        if (pos == 1){
+            printf("\nUne erreur a survenue.\n");
+            continue;
+        }
+    } while (pos == 1);
+
+    d->depart = depart;
+    d->arrivee = arrivee;
 }
 
 /*
