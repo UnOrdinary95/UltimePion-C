@@ -64,6 +64,7 @@ void jeu_afficher(Jeu *jeu);
 void jeu_initialiser(Jeu *jeu);
 int plateau_promouvoir(Plateau *plateau, Position pos);
 int position_lire(Position *pos);
+int derniere_ligne(Plateau *plateau, Deplacement d);
 int main(void);
 
 /**
@@ -784,8 +785,8 @@ int plateau_promouvoir(Plateau *plateau, Position pos){
  * @brief Lit une position au format "ligne colonne" depuis l'entrée standard.
  *
  * Cette fonction lit deux caractères depuis l'entrée standard (stdin) :
- * - Le premier caractère représente la ligne (chiffre de '1' à '9').
- * - Le second caractère représente la colonne (lettre majuscule de 'A' à 'Z').
+ * - Le premier caractère représente la ligne (chiffre de '1' à '5').
+ * - Le second caractère représente la colonne (lettre majuscule de 'A' à 'E').
  *
  * La position lue est convertie en indices de tableau (0-based) :
  * - La ligne est décrémentée de 1 (ex: '1' devient 0).
@@ -805,6 +806,35 @@ int position_lire(Position *pos){
     pos->colonne = c2 - 'A';
 
     return 0;
+}
+
+/**
+ * @brief Vérifie si un déplacement atteint la dernière ligne du plateau pour une pièce spécifique.
+ *
+ * Cette fonction détermine si un déplacement permet à une pièce d'atteindre la dernière ligne du plateau,
+ * ce qui est utilisé pour déclencher une promotion.
+ *
+ * Conditions vérifiées :
+ * - La pièce au départ doit être un pion.
+ * - Si c'est un pion bleu (-2), il doit atteindre la ligne maximale (BORNE_MAX).
+ * - Si c'est un pion rouge (2), il doit atteindre la ligne minimale (BORNE_MIN).
+ *
+ * @param[in] plateau Pointeur vers la structure Plateau représentant l'état actuel du jeu.
+ * @param[in] d Structure Déplacement contenant les positions de départ et d'arrivée.
+ * @return int 1 si le déplacement atteint la dernière ligne pour la pièce concernée, 0 sinon.
+ */
+int derniere_ligne(Plateau *plateau, Deplacement d){
+    int code_piece_depart = identifier_piece(plateau, d, 1);
+
+    if (code_piece_depart != -2 && code_piece_depart != 2){
+        return 0;
+    } else if (code_piece_depart == -2 && d.arrivee.ligne != BORNE_MAX){
+        return 0;
+    } else if (d.arrivee.ligne != BORNE_MIN){
+        return 0;
+    }
+
+    return 1;
 }
 
 /*
