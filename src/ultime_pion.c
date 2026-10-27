@@ -24,7 +24,7 @@
 
 #define COLOR_BLUE    "\x1b[34m"    // Joueur 1
 #define COLOR_RED     "\x1b[31m"    // Joueur 2
-#define COLOR_RESET   "\x1b[0m"     // Réinitialise la styles
+#define COLOR_RESET   "\x1b[0m"     // Réinitialise les styles
 
 
 typedef struct{
@@ -74,6 +74,8 @@ int position_lire(Position *pos);
 int derniere_ligne(Plateau *plateau, Deplacement d);
 void deplacement_lire(Deplacement *d);
 int peut_redeployer(Plateau *plateau, int joueur);
+int redeploiement_valide(Plateau *plateau, Position pos, int joueur);
+void redeploiement_lire(Deplacement *d, Plateau *plateau, int joueur);
 int main(void);
 
 /**
@@ -856,6 +858,73 @@ int peut_redeployer(Plateau *plateau, int joueur){
     }
 
     return 0;
+}
+
+/**
+ * @brief Vérifie si un redéploiement de pion est valide.
+ *
+ * Un redéploiement est valide si :
+ * - La position est dans les limites du plateau.
+ * - Le joueur est valide (1 ou 2).
+ * - La position n'est pas sur la dernière ligne du joueur (BORNE_MAX pour le joueur 1, BORNE_MIN pour le joueur 2).
+ * - La case contient bien un vide (VI).
+ *
+ * @param plateau Pointeur vers le plateau de jeu.
+ * @param pos Position à vérifier pour le redéploiement.
+ * @param joueur Numéro du joueur (1 ou 2).
+ * @return 1 si le redéploiement est valide, 0 sinon.
+ */
+int redeploiement_valide(Plateau *plateau, Position pos, int joueur){
+    if (deplacement_hors_plateau((Deplacement){pos, pos})){
+        return 0;
+    }
+
+    if (!est_joueur(joueur)){
+        return 0;
+    }
+
+    if (joueur == 1 && pos.ligne == BORNE_MAX){
+        return 0;
+    }
+
+    if (joueur == 2 && pos.ligne == BORNE_MIN){
+        return 0;
+    }
+
+    if (plateau->piece[pos.ligne][pos.colonne] != VI){
+        return 0;
+    }
+
+    return 1;
+}
+
+/**
+ * @brief Lit une position de redéploiement valide pour un pion promu.
+ *
+ * Demande à l'utilisateur de saisir une position de redéploiement jusqu'à ce qu'elle soit valide.
+ * Une position est valide si elle respecte les règles de redéploiement (case vide et non sur la dernière ligne).
+ *
+ * @param d Pointeur vers le déplacement à compléter avec la position de redéploiement.
+ * @param plateau Pointeur vers le plateau de jeu.
+ * @param joueur Numéro du joueur (1 ou 2) effectuant le redéploiement.
+ */
+void redeploiement_lire(Deplacement *d, Plateau *plateau, int joueur){
+    Position redeploiement;
+    int pos;
+    do
+    {
+        printf("Saisir position redeploiement :");
+        pos = position_lire(&redeploiement);
+
+        if (pos == 1){
+            printf("\nUne erreur a survenue.\n");
+            continue;
+        }
+
+        
+    } while (pos == 1 || !redeploiement_valide(plateau, redeploiement, joueur));
+
+    d->redeploiement = redeploiement;
 }
 
 /*
