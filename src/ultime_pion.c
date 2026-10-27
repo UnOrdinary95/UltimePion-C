@@ -8,6 +8,13 @@
 #define BORNE_MIN     0
 #define BORNE_MAX     TAILLE - 1
 
+// Codes des cases : CA = cavalier, PI = pion, VI = case vide ; 1 et 2 désignent les joueurs.
+#define CA_1          'C'
+#define CA_2          'c'
+#define PI_1          'P'
+#define PI_2          'p'
+#define VI            '.'
+
 #define VIDE          "·"
 #define PION          "♟"
 #define CAVALIER      "🩒"
@@ -266,9 +273,9 @@ int aucun_pions_restant(char piece[][TAILLE]){
     for (int i = 0; i < TAILLE; i++)
     {
         for (int j = 0; j < TAILLE; j++){
-            if (piece[i][j] == 'P' && aucun_pion_j1){
+            if (piece[i][j] == PI_1 && aucun_pion_j1){
                 aucun_pion_j1 = 0;
-            } else if (piece[i][j] == 'p' && aucun_pion_j2) {
+            } else if (piece[i][j] == PI_2 && aucun_pion_j2) {
                 aucun_pion_j2 = 0;
             }
 
@@ -405,11 +412,11 @@ int est_joueur(int joueur){
  * @param plateau Pointeur vers le plateau de jeu.
  * @param d Structure Deplacement contenant les positions de départ et d'arrivée.
  * @param est_depart 1 pour vérifier la position de départ, 0 pour l'arrivée.
- * @return -2 si la case contient un pion du joueur 1 ('P'),
- *         -1 si la case contient un cavalier du joueur 1 ('C'),
- *          0 si la case est vide ('.'),
- *          1 si la case contient un cavalier du joueur 2 ('c'),
- *          2 si la case contient un pion du joueur 2 ('p'),
+ * @return -2 si la case contient PI_1,
+ *         -1 si la case contient CA_1,
+ *          0 si la case est vide VI,
+ *          1 si la case contient CA_2,
+ *          2 si la case contient PI_2,
  *         et 0 si est_depart n'est pas 0 ou 1.
  */
 int identifier_piece(Plateau *plateau, Deplacement d, int est_depart){
@@ -422,10 +429,10 @@ int identifier_piece(Plateau *plateau, Deplacement d, int est_depart){
         return 0;
     }
 
-    if (piece == 'C') return -1;
-    if (piece == 'P') return -2;
-    if (piece == 'c') return 1;
-    if (piece == 'p') return 2;
+    if (piece == CA_1) return -1;
+    if (piece == PI_1) return -2;
+    if (piece == CA_2) return 1;
+    if (piece == PI_2) return 2;
 
     // Case vide
     return 0;
@@ -642,11 +649,11 @@ int aucun_coup_possible(Plateau *plateau){
  * - Le plateau de jeu avec les pièces positionnées
  *
  * Les pièces sont représentées avec les conventions suivantes :
- * - '.' : Case vide (affichée avec le style VIDE)
- * - 'C' : Cavalier du Joueur 1 (bleu)
- * - 'P' : Pion du Joueur 1 (bleu)
- * - 'c' : Cavalier du Joueur 2 (rouge)
- * - 'p' : Pion du Joueur 2 (rouge)
+ * - VI : Case vide (affichée avec le style VIDE)
+ * - CA_1 : Cavalier du Joueur 1 (bleu)
+ * - PI_1 : Pion du Joueur 1 (bleu)
+ * - CA_2 : Cavalier du Joueur 2 (rouge)
+ * - PI_2 : Pion du Joueur 2 (rouge)
  *
  * Le plateau est affiché avec :
  * - Des coordonnées en lettres (A-E) pour les colonnes
@@ -668,19 +675,19 @@ void jeu_afficher(Jeu *jeu)
 
         for (int j = 0; j < TAILLE; j++) {
             switch (jeu->plateau.piece[i][j]) {
-                case '.':
+                case VI:
                     printf(" " VIDE " ");
                     break;
-                case 'C':
+                case CA_1:
                     printf(" " COLOR_BLUE CAVALIER COLOR_RESET " ");
                     break;
-                case 'P':
+                case PI_1:
                     printf(" " COLOR_BLUE PION COLOR_RESET " ");
                     break;
-                case 'c':
+                case CA_2:
                     printf(" " COLOR_RED CAVALIER COLOR_RESET " ");
                     break;
-                case 'p':
+                case PI_2:
                     printf(" " COLOR_RED PION COLOR_RESET " ");
                     break;
             }
@@ -702,11 +709,11 @@ void jeu_afficher(Jeu *jeu)
  */
 void jeu_initialiser(Jeu *jeu){
     const char pieces_initiales[TAILLE][TAILLE] = {
-        {'C', 'P', 'P', 'P', 'C'},
-        {'P', '.', '.', '.', 'P'},
-        {'.', '.', '.', '.', '.'},
-        {'p', '.', '.', '.', 'p'},
-        {'c', 'p', 'p', 'p', 'c'}
+        {CA_1, PI_1, PI_1, PI_1, CA_1},
+        {PI_1, VI, VI, VI, PI_1},
+        {VI, VI, VI, VI, VI},
+        {PI_2, VI, VI, VI, PI_2},
+        {CA_2, PI_2, PI_2, PI_2, CA_2}
     };
 
     for (int i = 0; i < TAILLE; i++) {
@@ -753,13 +760,13 @@ int plateau_promouvoir(Plateau *plateau, Position pos){
             return 0;
         }
         joueur = 1;
-        cavalier = 'C';
+        cavalier = CA_1;
     } else {
         if (pos.ligne != BORNE_MIN){
             return 0;
         }
         joueur = 2;
-        cavalier = 'c';
+        cavalier = CA_2;
     }
 
     if (!est_piece_joueur(joueur, code_piece)){
@@ -873,6 +880,7 @@ void deplacement_lire(Deplacement *d){
 
     d->depart = depart;
     d->arrivee = arrivee;
+    d->redeploiement = (Position){-1, -1}; // Par défaut on va le laisser invalides
 }
 
 /*
@@ -884,6 +892,7 @@ tout ça sera encapsulé dans une fonction qui sera appelé dans lire deplacemen
 
 ---
 Relire le sujet pour voir ce qu'il reste à faire.
+refactor derniere ligne car le test est déjà faites avant ?
 
 */
 
