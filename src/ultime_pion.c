@@ -1093,13 +1093,13 @@ int resoudre_redeploiement(Jeu *jeu, Deplacement depl1, Deplacement depl2, int j
         }
     }
 
-    char piece;
+    int redeploiement_possible;
     if (j1_derniere_ligne){
         // Cas 3 : Redeploiement dans des cases distinct
         if (j1_peut_redeployer){
-            piece = jeu->plateau.piece[depl1.redeploiement.ligne][depl1.redeploiement.colonne];
+            redeploiement_possible = redeploiement_valide(&jeu->plateau, depl1.redeploiement, 1);
             jeu->plateau.piece[depl1.arrivee.ligne][depl1.arrivee.colonne] = VI;
-            if (piece == VI){
+            if (redeploiement_possible){
                 jeu->plateau.piece[depl1.redeploiement.ligne][depl1.redeploiement.colonne] = PI_1;
             }
         } else {
@@ -1110,9 +1110,9 @@ int resoudre_redeploiement(Jeu *jeu, Deplacement depl1, Deplacement depl2, int j
 
     if (j2_derniere_ligne){
         if (j2_peut_redeployer){
-            piece = jeu->plateau.piece[depl2.redeploiement.ligne][depl2.redeploiement.colonne];
+            redeploiement_possible = redeploiement_valide(&jeu->plateau, depl2.redeploiement, 2);
             jeu->plateau.piece[depl2.arrivee.ligne][depl2.arrivee.colonne] = VI;
-            if (piece == VI){
+            if (redeploiement_possible){
                 jeu->plateau.piece[depl2.redeploiement.ligne][depl2.redeploiement.colonne] = PI_2;
             }
         } else {
