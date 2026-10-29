@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <MLV/MLV_all.h>
+#include <SDL/SDL.h>
 
 #define TAILLE_CARREE       100
 #define LARGEUR_PLATEAU     (TAILLE * TAILLE_CARREE)
@@ -1345,6 +1346,18 @@ int main(void){
     interface.joueur = 1;
     annuler_selection(&interface);
     interface.termine = jeu_est_termine(&interface.jeu);
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0){
+        printf("Impossible d'initialiser SDL : %s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_Surface *icon = SDL_LoadBMP("assets/images/icon.bmp");
+    if (icon != NULL){
+        SDL_WM_SetIcon(icon, NULL);
+        SDL_FreeSurface(icon);
+    } else {
+        printf("Impossible de charger l'icône : %s\n", SDL_GetError());
+    }
 
     MLV_create_window("Ultime Pion MLV", "Ultime Pion MLV",
         LARGEUR_FENETRE, HAUTEUR_FENETRE);
