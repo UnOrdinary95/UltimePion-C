@@ -6,7 +6,7 @@
 
 #define TAILLE        5
 #define BORNE_MIN     0
-#define BORNE_MAX     TAILLE - 1
+#define BORNE_MAX     (TAILLE - 1)
 
 // Codes des cases : CA = cavalier, PI = pion, VI = case vide ; 1 et 2 désignent les joueurs.
 #define CA_1          'C'
@@ -50,6 +50,7 @@ typedef struct{
 
 
 int plateau_deplacement_valide(Plateau *plateau, Deplacement depl, int joueur);
+int jeu_resoudre_tour(Jeu *jeu, Deplacement depl1, Deplacement depl2);
 int jeu_est_termine(Jeu *jeu);
 int jeu_vainqueur(Jeu *jeu);
 void jeu_charger(Jeu *jeu);
@@ -76,6 +77,9 @@ void deplacement_lire(Deplacement *d);
 int peut_redeployer(Plateau *plateau, int joueur);
 int redeploiement_valide(Plateau *plateau, Position pos, int joueur);
 void redeploiement_lire(Deplacement *d, Plateau *plateau, int joueur);
+int resoudre_deplacements(Jeu *jeu, Deplacement depl1, Deplacement depl2, int j1_valide, int j2_valide);
+char resoudre_duel(char piece1, char piece2);
+int resoudre_redeploiement(Jeu *jeu, Deplacement depl1, Deplacement depl2, int j1_valide, int j2_valide);
 int main(void);
 
 /**
@@ -130,6 +134,34 @@ int plateau_deplacement_valide(Plateau *plateau, Deplacement depl, int joueur){
         return 0;
     }
 
+    return 1;
+}
+
+/**
+ * @brief Résout un tour complet du jeu en traitant les déplacements et les promotions/redéploiements.
+ *
+ * Cette fonction gère la résolution d'un tour en deux phases :
+ * 1. Résolution des déplacements simultanés des deux joueurs (duels, captures, pénalités).
+ * 2. Traitement des promotions et redéploiements pour les pions atteignant la dernière ligne.
+ *
+ * @param jeu Pointeur vers la structure Jeu contenant l'état actuel du jeu.
+ * @param depl1 Déplacement choisi par le joueur 1.
+ * @param depl2 Déplacement choisi par le joueur 2.
+ * @return 1 si le tour a été résolu avec succès.
+ *
+ */
+int jeu_resoudre_tour(Jeu *jeu, Deplacement depl1, Deplacement depl2){
+    int j1_valide = plateau_deplacement_valide(&jeu->plateau, depl1, 1);
+    int j2_valide = plateau_deplacement_valide(&jeu->plateau, depl2, 2);
+    jeu->tour += 1;
+    
+    // Phase 1 : Deplacements
+    if (!resoudre_deplacements(jeu, depl1, depl2, j1_valide, j2_valide)){
+        return 1; // Double pénalité, on passe au tour suivant
+    }
+
+    // Phase 2 : Redeploiement & Promotion
+    resoudre_redeploiement(jeu, depl1, depl2, j1_valide, j2_valide);
     return 1;
 }
 
@@ -327,11 +359,6 @@ int deplacement_hors_plateau(Deplacement d){
  *         0 si le déplacement est invalide ou en dehors des limites du plateau.
  */
 int deplacement_cavalier_valide(Deplacement d){
-    // Position en dehors des bornes
-    if (deplacement_hors_plateau(d)){
-        return 0; // TODO: Delete si redondant?
-    }
-    
     // Cas ligne +- 2 et colonne +- 1
     if (d.arrivee.ligne == d.depart.ligne + 2 || d.arrivee.ligne == d.depart.ligne - 2)
     {
@@ -364,15 +391,6 @@ int deplacement_cavalier_valide(Deplacement d){
  * @note Cette fonction ne vérifie pas si la case d'arrivée est libre ou contient un adversaire.
  */
 int deplacement_pion_valide(Deplacement d, int joueur){
-    // Le joueur doit etre valide
-    if (!est_joueur(joueur)){ // TODO: Delete si redondant?
-        return 0; 
-    }
-
-    if (deplacement_hors_plateau(d)){
-        return 0; // TODO: Delete si redondant?
-    }
-
     // Cas ligne + 1 (joueur 1)
     if (d.arrivee.ligne != d.depart.ligne + 1 && joueur == 1){
         return 0; // joueur 1 doit forcément faire ligne + 1
@@ -758,14 +776,14 @@ void plateau_promouvoir(Plateau *plateau, Position pos, int joueur){
  * @return int 0 si la lecture a réussi, 1 en cas d'erreur (format invalide ou EOF).
  */
 int position_lire(Position *pos){
-    char c1, c2;
+    char colonne, ligne;
 
-    if (scanf(" %c %c", &c1, &c2) != 2) {
+    if (scanf(" %c %c", &colonne, &ligne) != 2) {
         return 1;
     }
 
-    pos->ligne = c1 - '0' - 1; // Conversion d'un entier char en entier int - 1 (indice tableau)
-    pos->colonne = c2 - 'A';
+    pos->ligne = ligne - '0' - 1; // Conversion d'un entier char en entier int - 1 (indice tableau)
+    pos->colonne = colonne - 'A';
 
     return 0;
 }
@@ -785,18 +803,20 @@ int position_lire(Position *pos){
  * @param d Structure Déplacement contenant les positions de départ et d'arrivée.
  * @return int 1 si le déplacement atteint la dernière ligne pour la pièce concernée, 0 sinon.
  */
-int derniere_ligne(Plateau *plateau, Deplacement d){
-    int code_piece_depart = identifier_piece(plateau, d, 1);
+int derniere_ligne(Plateau *plateau, Deplacement d) {
+    int piece = identifier_piece(plateau, d, 1);
 
-    if (code_piece_depart != -2 && code_piece_depart != 2){
-        return 0;
-    } else if (code_piece_depart == -2 && (d.depart.ligne != BORNE_MAX - 1 || d.arrivee.ligne != BORNE_MAX)){
-        return 0;
-    } else if (d.depart.ligne != BORNE_MIN + 1 || d.arrivee.ligne != BORNE_MIN){
-        return 0;
+    if (piece == -2) {
+        return d.depart.ligne == BORNE_MAX - 1
+            && d.arrivee.ligne == BORNE_MAX;
     }
 
-    return 1;
+    if (piece == 2) {
+        return d.depart.ligne == BORNE_MIN + 1
+            && d.arrivee.ligne == BORNE_MIN;
+    }
+
+    return 0;
 }
 
 /**
@@ -837,6 +857,16 @@ void deplacement_lire(Deplacement *d){
     d->redeploiement = (Position){-1, -1}; // Par défaut on va le laisser invalides
 }
 
+/**
+ * @brief Vérifie si un joueur peut effectuer un redéploiement de pion.
+ *
+ * Un joueur peut redéployer un pion s'il possède déjà deux cavaliers sur le plateau.
+ * Cette fonction compte le nombre de cavaliers du joueur et retourne 1 s'il en a au moins deux.
+ *
+ * @param plateau Pointeur vers le plateau de jeu.
+ * @param joueur Numéro du joueur (1 ou 2).
+ * @return 1 si le joueur peut redéployer (a déjà 2 cavaliers), 0 sinon ou si le joueur est invalide.
+ */
 int peut_redeployer(Plateau *plateau, int joueur){
     if (!est_joueur(joueur)){
         return 0;
@@ -927,22 +957,205 @@ void redeploiement_lire(Deplacement *d, Plateau *plateau, int joueur){
     d->redeploiement = redeploiement;
 }
 
-/*
-TODO: La suite
-Après la saisie de depart et arrivee faut check si c'est un pion et si il traverse la derniere ligne,
-si c'est le cas alors check si il faut promouvoir ou redeployer
+/**
+ * @brief Résout les déplacements simultanés des deux joueurs.
+ *
+ * Gère les cas suivants :
+ * - Déplacements invalides (pénalités appliquées).
+ * - Duel sur la même case (résolution via resoudre_duel).
+ * - Déplacements normaux ou captures sur cases distinctes.
+ *
+ * @param jeu Pointeur vers la structure Jeu contenant l'état du plateau et les pénalités.
+ * @param depl1 Déplacement du joueur 1.
+ * @param depl2 Déplacement du joueur 2.
+ * @param j1_valide Indique si le déplacement du joueur 1 est valide (1) ou non (0).
+ * @param j2_valide Indique si le déplacement du joueur 2 est valide (1) ou non (0).
+ * @return 1 si la résolution s'est déroulée sans erreur, 0 en cas de double pénalité.
+ */
+int resoudre_deplacements(Jeu *jeu, Deplacement depl1, Deplacement depl2, int j1_valide, int j2_valide){
+    // Cas 1 : Les deux joueurs ont un déplacement invalide
+    if (!j1_valide && !j2_valide){
+        jeu->penalite[0] += 1;
+        jeu->penalite[1] += 1;
+        return 0;
+    }
+    
+    // Récupération des pieces de départ
+    char j1_piece_depart = '\0', j2_piece_depart = '\0';
+    
+    if (j1_valide){
+        j1_piece_depart = jeu->plateau.piece[depl1.depart.ligne][depl1.depart.colonne];
+        jeu->plateau.piece[depl1.depart.ligne][depl1.depart.colonne] = VI; 
+    } else {
+        jeu->penalite[0] += 1;
+    }
+    
+    if (j2_valide){
+        j2_piece_depart = jeu->plateau.piece[depl2.depart.ligne][depl2.depart.colonne]; 
+        jeu->plateau.piece[depl2.depart.ligne][depl2.depart.colonne] = VI; 
+    } else {
+        jeu->penalite[1] += 1;
+    }
 
-tout ça sera encapsulé dans une fonction qui sera appelé dans lire deplacement
+    // Cas 2 : Duel sur même case (arrivée)
+    if (j1_valide && j2_valide){
+        if (depl1.arrivee.ligne == depl2.arrivee.ligne && depl1.arrivee.colonne == depl2.arrivee.colonne){
+            jeu->plateau.piece[depl1.arrivee.ligne][depl1.arrivee.colonne] = resoudre_duel(j1_piece_depart, j2_piece_depart);
+            return 1;
+        }
+    }
 
----
-Relire le sujet pour voir ce qu'il reste à faire.
-refactor derniere ligne car le test est déjà faites avant ? (On verra plus tard)
+    // Cas 3 : Capture sur case distinct 
+    if (j1_valide){
+        jeu->plateau.piece[depl1.arrivee.ligne][depl1.arrivee.colonne] = j1_piece_depart;
+    }
+    if (j2_valide){
+        jeu->plateau.piece[depl2.arrivee.ligne][depl2.arrivee.colonne] = j2_piece_depart;
+    }
+    return 1;
+}
 
-*/
+/**
+ * @brief Résout un duel entre deux pièces arrivant sur la même case.
+ *
+ * Applique les règles de résolution des duels :
+ * - Deux pions s'éliminent mutuellement (retourne VI).
+ * - Un cavalier l'emporte sur un pion (retourne le cavalier).
+ * - Deux cavaliers s'éliminent mutuellement (retourne VI).
+ *
+ * @param piece1 Pièce du joueur 1 (PI_1 ou CA_1).
+ * @param piece2 Pièce du joueur 2 (PI_2 ou CA_2).
+ * @return Le caractère représentant la pièce gagnante, ou VI si les deux pièces sont éliminées.
+ */
+char resoudre_duel(char piece1, char piece2){
+    switch(piece1){
+        case PI_1:
+            if (piece2 == PI_2){
+                return VI;
+            } else if (piece2 == CA_2){
+                return CA_2;
+            }
+            break;
+        case CA_1:
+            if (piece2 == PI_2){
+                return CA_1;
+            } else if (piece2 == CA_2){
+                return VI;
+            }
+    }
+    return VI;
+}
+
+/**
+ * @brief Résout les cas de promotion et redéploiement des pions atteignant la dernière ligne.
+ *
+ * Gère les scénarios suivants pour les déplacements valides uniquement :
+ * - Aucun pion valide n'atteint la dernière ligne (retourne 0).
+ * - Deux pions valides atteignent la dernière ligne et tentent un redéploiement sur la même case
+ *   (les deux pions sont éliminés).
+ * - Redéploiement valide sur des cases distinctes (le pion est déplacé si la case est vide).
+ * - Promotion directe en cavalier si aucun redéploiement n'est spécifié.
+ *
+ * @param jeu Pointeur vers la structure Jeu contenant l'état du plateau.
+ * @param depl1 Déplacement du joueur 1 (peut inclure une position de redéploiement).
+ * @param depl2 Déplacement du joueur 2 (peut inclure une position de redéploiement).
+ * @param j1_valide Indique si le déplacement du joueur 1 est valide (1) ou non (0).
+ * @param j2_valide Indique si le déplacement du joueur 2 est valide (1) ou non (0).
+ * @return 1 si un redéploiement ou une promotion a été traité, 0 sinon.
+ */
+int resoudre_redeploiement(Jeu *jeu, Deplacement depl1, Deplacement depl2, int j1_valide, int j2_valide){
+    int j1_derniere_ligne = j1_valide 
+    && depl1.arrivee.ligne == BORNE_MAX 
+    && jeu->plateau.piece[depl1.arrivee.ligne][depl1.arrivee.colonne] == PI_1;
+    
+    int j2_derniere_ligne = j2_valide 
+    && depl2.arrivee.ligne == BORNE_MIN 
+    && jeu->plateau.piece[depl2.arrivee.ligne][depl2.arrivee.colonne] == PI_2;
+
+    int j1_peut_redeployer = peut_redeployer(&jeu->plateau, 1);
+    int j2_peut_redeployer = peut_redeployer(&jeu->plateau, 2);
+
+    // Cas 1 : Personne dans la derniere ligne
+    if (!j1_derniere_ligne && !j2_derniere_ligne){
+        return 0;
+    }
+
+    // Cas 2 : Redeploiement dans la même case
+    if (j1_derniere_ligne && j2_derniere_ligne){
+        if (j1_peut_redeployer &&
+            j2_peut_redeployer && 
+            depl1.redeploiement.ligne == depl2.redeploiement.ligne &&
+            depl1.redeploiement.colonne == depl2.redeploiement.colonne)
+        {
+            jeu->plateau.piece[depl1.arrivee.ligne][depl1.arrivee.colonne] = VI;
+            jeu->plateau.piece[depl2.arrivee.ligne][depl2.arrivee.colonne] = VI;
+            return 1;
+        }
+    }
+
+    char piece;
+    if (j1_derniere_ligne){
+        // Cas 3 : Redeploiement dans des cases distinct
+        if (j1_peut_redeployer){
+            piece = jeu->plateau.piece[depl1.redeploiement.ligne][depl1.redeploiement.colonne];
+            jeu->plateau.piece[depl1.arrivee.ligne][depl1.arrivee.colonne] = VI;
+            if (piece == VI){
+                jeu->plateau.piece[depl1.redeploiement.ligne][depl1.redeploiement.colonne] = PI_1;
+            }
+        } else {
+            // Cas 4 : Promotion
+            plateau_promouvoir(&jeu->plateau, depl1.arrivee, 1);
+        }
+    }
+
+    if (j2_derniere_ligne){
+        if (j2_peut_redeployer){
+            piece = jeu->plateau.piece[depl2.redeploiement.ligne][depl2.redeploiement.colonne];
+            jeu->plateau.piece[depl2.arrivee.ligne][depl2.arrivee.colonne] = VI;
+            if (piece == VI){
+                jeu->plateau.piece[depl2.redeploiement.ligne][depl2.redeploiement.colonne] = PI_2;
+            }
+        } else {
+            plateau_promouvoir(&jeu->plateau, depl2.arrivee, 2);
+        }
+    }
+    return 1;
+}
 
 int main(void){
     Jeu jeu;
     jeu_initialiser(&jeu);
-    jeu_afficher(&jeu);
+    Deplacement depl1, depl2;
+    while (!jeu_est_termine(&jeu)){
+        jeu_afficher(&jeu);
+        
+        printf("--Joueur 1--\n");
+        deplacement_lire(&depl1);
+        if (!deplacement_hors_plateau(depl1) && derniere_ligne(&jeu.plateau, depl1)){ // Même si il ne peux pas redeployer, on anticipe le cas ou nb_cavalier < 2
+            redeploiement_lire(&depl1, &jeu.plateau, 1);
+        }
+        
+        printf("--Joueur 2--\n");
+        deplacement_lire(&depl2);
+        if (!deplacement_hors_plateau(depl2) && derniere_ligne(&jeu.plateau, depl2)){ 
+            redeploiement_lire(&depl2, &jeu.plateau, 2);
+        }
+
+        jeu_resoudre_tour(&jeu, depl1, depl2);
+    }
+
+    int vainqueur = jeu_vainqueur(&jeu);
+    switch(vainqueur){
+        case 0:
+            printf("\nPartie nulle.\n");
+            break;
+        case 1:
+            printf("\nJoueur 1 a gagné.\n");
+            break;
+        case 2:
+            printf("\nJoueur 2 a gagné.\n");
+            break;
+        }
+
     return 0;
 }
