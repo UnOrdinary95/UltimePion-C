@@ -762,11 +762,11 @@ void plateau_promouvoir(Plateau *plateau, Position pos, int joueur){
 }
 
 /**
- * @brief Lit une position au format "ligne colonne" depuis l'entrée standard.
+ * @brief Lit une position au format "colonne ligne" depuis l'entrée standard.
  *
  * Cette fonction lit deux caractères depuis l'entrée standard (stdin) :
- * - Le premier caractère représente la ligne (chiffre de '1' à '5').
- * - Le second caractère représente la colonne (lettre majuscule de 'A' à 'E').
+ * - Le premier caractère représente la colonne (lettre majuscule de 'A' à 'E').
+ * - Le second caractère représente la ligne (chiffre de '1' à '5').
  *
  * La position lue est convertie en indices de tableau (0-based) :
  * - La ligne est décrémentée de 1 (ex: '1' devient 0).
@@ -820,7 +820,7 @@ int derniere_ligne(Plateau *plateau, Deplacement d) {
 }
 
 /**
- * @brief Lit un déplacement depuis l'entrée standard (stdin) au format "ligne colonne".
+ * @brief Lit un déplacement depuis l'entrée standard (stdin) au format "colonne ligne".
  *
  * Cette fonction demande à l'utilisateur de saisir deux positions :
  * - Une position de départ.
@@ -835,7 +835,7 @@ void deplacement_lire(Deplacement *d){
     Position depart, arrivee;
     int pos;
     do{
-        printf("Saisir position départ : ");
+        printf("Position de départ (colonne A-E puis ligne 1-5, ex. A 1) : ");
         pos = position_lire(&depart);
 
         if (pos == 1){
@@ -843,7 +843,7 @@ void deplacement_lire(Deplacement *d){
             continue;
         }
         
-        printf("Saisir position arrivée : ");
+        printf("Position d'arrivée (colonne A-E puis ligne 1-5, ex. B 2) : ");
         pos = position_lire(&arrivee);
 
         if (pos == 1){
@@ -943,7 +943,7 @@ void redeploiement_lire(Deplacement *d, Plateau *plateau, int joueur){
     int pos;
     do
     {
-        printf("Saisir position redeploiement :");
+        printf("Position de redéploiement (colonne A-E puis ligne 1-5, ex. C 3) : ");
         pos = position_lire(&redeploiement);
 
         if (pos == 1){
